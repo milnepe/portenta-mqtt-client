@@ -23,7 +23,7 @@
 
 // ESDK host
 // You may need to substiture its IP address on your network
-const char broker[] = "192.168.0.1";
+const char broker[] = BROKER_IP;
 int        port     = 1883;
 
 // ESDK topic root
@@ -47,90 +47,12 @@ double humidity = 0;
 int tvoc = 0;
 int pm = 0;
 
-void setup() {
-  pinMode(LED_BUILTIN, OUTPUT);
-
-  Serial.begin(115200);
-#ifdef DEBUG
-  while (!Serial) {
-    ; // wait for serial port to connect
+boolean reconnectMQTT() {
+  if (mqttClient.connect("arduinoClient")) {
+    // ... and resubscribe
+    mqttClient.subscribe(TOPIC);
   }
-#endif
-
-  Serial.println("Portenta MQTT client");
-
-  // Print firmware version on the module
-  String fv = WiFi.firmwareVersion();
-  String latestFv;
-  Serial.print("Firmware version installed: ");
-  Serial.println(fv);
-
-  mqttClient.setServer(broker, port);
-  mqttClient.setCallback(callback);
-  mqttClient.setBufferSize(384);
-
-  Serial.println("Attempting WiFi connection...");
-  delay(1000);
-}
-
-void loop() {
-
-  // Attempt to reconnect
-  // Wifi.begin blocks until connect or failure timeout
-  int wifi_status = WiFi.status();
-  Serial.print("Wifi status: ");
-  Serial.println(wifi_status);
-  if (WiFi.status() != WL_CONNECTED) {
-    reconnectWiFi();
-  }
-
-  if (!mqttClient.connected()) {
-    // Attempt to reconnect without blocking
-    // Stops too many connection attemps which
-    // can give you a bad day!
-    unsigned long now = millis();
-    if (now - lastReconnectMQTTAttempt > 5000) {
-      lastReconnectMQTTAttempt = now;
-      if (reconnectMQTT()) {
-        lastReconnectMQTTAttempt = 0;
-      }
-    }
-  } else {
-    mqttClient.loop();
-  }
-
-#ifdef DEBUG
-  if (printFlag) {
-    printSensorReadings();
-    printFlag = false;
-  }
-#endif
-
-  // Code that must always run
-  digitalWrite(LED_BUILTIN, (heartbeat = !heartbeat));
-  Serial.println(heartbeat);
-  Serial.println("Still running...");
-  delay(500);
-}
-
-int reconnectWiFi() {
-  // WL_IDLE_STATUS     = 0
-  // WL_NO_SSID_AVAIL   = 1
-  // WL_SCAN_COMPLETED  = 2
-  // WL_CONNECTED       = 3
-  // WL_CONNECT_FAILED  = 4
-  // WL_CONNECTION_LOST = 5
-  // WL_DISCONNECTED    = 6
-  printWiFiStatus(WiFi.status());
-  // Always force Wifi drv to disconnect for safety
-  int disconnect_result = WiFi.disconnect();
-  Serial.print("Disconnect state: ");
-  Serial.println(disconnect_result);
-  printWiFiStatus(WiFi.status());
-  delay(1000);
-  WiFi.begin(ssid, pass);
-  printWiFiStatus(WiFi.status());
-  return WiFi.status();
+  return mqttClient.connected();
 }
 
 void printWiFiStatus(int state) {
@@ -156,18 +78,6 @@ void printWiFiStatus(int state) {
     case WL_DISCONNECTED:
       Serial.println("WiFi DISCONNECTED");
   }
-}
-
-boolean reconnectMQTT() {
-  if (WiFi.status() == WL_CONNECTED) {
-    Serial.print("Attempting connection to the MQTT server: ");
-    Serial.println(broker);
-    if (mqttClient.connect("arduinoClient")) {
-      mqttClient.subscribe(TOPIC);
-      Serial.println("MQTT connected");
-    }
-  }
-  return mqttClient.connected();
 }
 
 // Update sensor variables each time a message is received
@@ -203,4 +113,93 @@ void printSensorReadings() {
   Serial.println(tvoc);
   Serial.print("PM2.5: ");
   Serial.println(pm);
+}
+
+int reconnectWiFi() {
+  // WL_IDLE_STATUS     = 0
+  // WL_NO_SSID_AVAIL   = 1
+  // WL_SCAN_COMPLETED  = 2
+  // WL_CONNECTED       = 3
+  // WL_CONNECT_FAILED  = 4
+  // WL_CONNECTION_LOST = 5
+  // WL_DISCONNECTED    = 6
+  printWiFiStatus(WiFi.status());
+  // Always force Wifi drv to disconnect for safety
+  int disconnect_result = WiFi.disconnect();
+  Serial.print("Disconnect state: ");
+  Serial.println(disconnect_result);
+  printWiFiStatus(WiFi.status());
+  delay(1000);
+  WiFi.begin(ssid, pass);
+  printWiFiStatus(WiFi.status());
+  return WiFi.status();
+}
+
+void setup() {
+  pinMode(LED_BUILTIN, OUTPUT);
+
+  Serial.begin(115200);
+#ifdef DEBUG
+  while (!Serial) {
+    ; // wait for serial port to connect
+  }
+#endif
+
+  Serial.println("Portenta MQTT client");
+
+  // Print firmware version on the module
+  String fv = WiFi.firmwareVersion();
+  String latestFv;
+  Serial.print("Firmware version installed: ");
+  Serial.println(fv);
+
+  mqttClient.setServer(broker, port);
+  mqttClient.setCallback(callback);
+  mqttClient.setBufferSize(384);
+
+  Serial.println("Attempting WiFi connection...");
+  delay(1000);
+  lastReconnectMQTTAttempt = 0;
+}
+
+void loop() {
+
+  // Attempt to reconnect
+  // Wifi.begin blocks until connect or failure timeout
+  int wifi_status = WiFi.status();
+  Serial.print("Wifi status: ");
+  Serial.println(wifi_status);
+  if (WiFi.status() != WL_CONNECTED) {
+    reconnectWiFi();
+  }
+
+  if (WiFi.status() == WL_CONNECTED) {
+    if (!mqttClient.connected()) {
+      // Attempt to reconnect without blocking
+      // Stops too many connection attemps which
+      // can give you a bad day!
+      unsigned long now = millis();
+      if (now - lastReconnectMQTTAttempt > 5000) {
+        lastReconnectMQTTAttempt = now;
+        if (reconnectMQTT()) {
+          lastReconnectMQTTAttempt = 0;
+        }
+      }
+    } else {
+      mqttClient.loop();
+    }
+  }
+
+#ifdef DEBUG
+  if (printFlag) {
+    printSensorReadings();
+    printFlag = false;
+  }
+#endif
+
+  // Code that must always run
+  digitalWrite(LED_BUILTIN, (heartbeat = !heartbeat));
+  Serial.println(heartbeat);
+  Serial.println("Still running...");
+  delay(500);
 }
