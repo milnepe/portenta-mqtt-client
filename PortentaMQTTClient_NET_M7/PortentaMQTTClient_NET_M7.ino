@@ -1,9 +1,9 @@
 /***************************************************
-  A robust MQTT client for the Portenta that connects
+  MQTT network client for the Portenta that connects
   to DesgnSpark's ESDK
 
   Version: 0.1
-  Date: 8th Aug 2023
+  Date: 11th Aug 2023
   Author: Peter Milne
 
   Copywrite 2022 Peter Milne
@@ -11,15 +11,15 @@
   Version 3, 29 June 2007
 
  ****************************************************/
-
 #include <WiFi.h>
 #include "arduino_secrets.h"
 #include <PubSubClient.h>
 #include "ArduinoJson.h"
 
+
 // Un-comment for debugging
 // System will not run in DEBUG until serial monitor attaches!
-#define DEBUG
+//#define DEBUG
 
 // ESDK host
 // You may need to substiture its IP address on your network
@@ -39,7 +39,6 @@ PubSubClient mqttClient(wifiClient);
 
 unsigned long lastReconnectMQTTAttempt = 0;
 boolean printFlag = false;
-boolean heartbeat = true;
 
 int co2 = 0;
 double temperature = 0;
@@ -49,7 +48,6 @@ int pm = 0;
 
 boolean reconnectMQTT() {
   if (mqttClient.connect("arduinoClient")) {
-    // ... and resubscribe
     mqttClient.subscribe(TOPIC);
   }
   return mqttClient.connected();
@@ -136,8 +134,7 @@ int reconnectWiFi() {
 }
 
 void setup() {
-  pinMode(LED_BUILTIN, OUTPUT);
-
+  bootM4();
   Serial.begin(115200);
 #ifdef DEBUG
   while (!Serial) {
@@ -166,9 +163,11 @@ void loop() {
 
   // Attempt to reconnect
   // Wifi.begin blocks until connect or failure timeout
+#ifdef DEBUG
   int wifi_status = WiFi.status();
   Serial.print("Wifi status: ");
   Serial.println(wifi_status);
+#endif
   if (WiFi.status() != WL_CONNECTED) {
     reconnectWiFi();
   }
@@ -196,10 +195,4 @@ void loop() {
     printFlag = false;
   }
 #endif
-
-  // Code that must always run
-  digitalWrite(LED_BUILTIN, (heartbeat = !heartbeat));
-  Serial.println(heartbeat);
-  Serial.println("Still running...");
-  delay(500);
 }
