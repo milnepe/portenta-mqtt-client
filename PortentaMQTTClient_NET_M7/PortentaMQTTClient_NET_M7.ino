@@ -48,7 +48,7 @@ int tvoc = 0;
 int pm = 0;
 
 boolean reconnectMQTT() {
-  if (mqttClient.connect("arduinoClient")) {
+  if (mqttClient.connect("portenta")) {
     mqttClient.subscribe(TOPIC);
   }
   return mqttClient.connected();
