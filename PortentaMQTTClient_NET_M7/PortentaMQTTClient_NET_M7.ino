@@ -11,6 +11,7 @@
   Version 3, 29 June 2007
 
  ****************************************************/
+#include "RPC.h"
 #include <WiFi.h>
 #include "arduino_secrets.h"
 #include <PubSubClient.h>
@@ -80,6 +81,7 @@ void printWiFiStatus(int state) {
 
 // Update sensor variables each time a message is received
 void callback(char* topic, byte * payload, unsigned int length) {
+  RPC.call("remoteSetIndicator");
   Serial.print("Message arrived [");
   Serial.print(topic);
   Serial.print("] ");
@@ -134,7 +136,7 @@ int reconnectWiFi() {
 }
 
 void setup() {
-  bootM4();
+  RPC.begin();
   Serial.begin(115200);
 #ifdef DEBUG
   while (!Serial) {
